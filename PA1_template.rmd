@@ -1,0 +1,160 @@
+# Reproducible Research Assignment Introduction
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+## Accessing the relevant libraries
+
+The relevent libraries are called. Lubridate has been specifically called for formatting of the date data.
+
+```{r}
+library(knitr)
+library(dplyr)
+library(lubridate)
+library(magrittr)
+library(ggplot2)
+```
+
+### Setting the scho option TRUE for the entire document
+
+```{r}
+opts_chunk$set(echo = TRUE)
+```
+
+## Loading and preprocessing the data
+
+```{r}
+unzip(zipfile="repdata-data-activity.zip")
+data <- read.csv("activity.csv", header = TRUE, sep = ',', colClasses = c("numeric", "character","integer"))
+data$date <- ymd(data$date)
+```
+
+## Reading the data sample
+```{r}
+str(data)
+```
+
+```{r}
+head(data)
+```
+
+## Mean and median of total number of steps taken during the day
+
+### Calculating the total number of steps taken in a day
+```{r}
+steps <- data %>%
+filter(!is.na(steps)) %>%
+group_by(date) %>%
+summarize(steps = sum(steps)) %>%
+print
+```
+
+### Histogram of total number of steps taken in a day
+```{r}
+ggplot(steps, aes(x = steps)) +
+geom_histogram(fill = "firebrick", binwidth = 1000) +
+labs(title = "Histogram of Steps per day", x = "Steps per day", y = "Frequency")
+```
+
+### Mean and median calculations
+```{r}
+mean_steps <- mean(steps$steps, na.rm = TRUE)
+median_steps <- median(steps$steps, na.rm = TRUE)
+```
+
+```{r}
+mean_steps
+```
+
+```{r}
+median_steps
+```
+
+## Average daily activity pattern calculations
+
+### Average number of steps taken in each of the 5 minute intervals, per day
+```{r}
+interval <- data %>%
+filter(!is.na(steps)) %>%
+group_by(interval) %>%
+summarize(steps = mean(steps))
+```
+
+### Using ggplot to chart the time series of the 5-minute intervals and the average steps taken in them
+```{r}
+ggplot(interval, aes(x=interval, y=steps)) +
+geom_line(color = "firebrick")
+```
+
+### Finding the 5-minute interval, on average across all the days in the dataset, containing the maximum number of steps
+```{r}
+interval[which.max(interval$steps),]
+```
+
+## Inputting missing values
+
+### Missing values reporting
+
+```{r}
+sum(is.na(data$steps))
+```
+
+### Inputting strategy for the missing values 
+
+Filling in the missing NAs with the average number of steps in the same 5-min interval and storing it in a a new dataset
+Also, following it by checking there are no residual missing values.
+
+```{r}
+data_new <- data
+nas <- is.na(data_new$steps)
+avg_interval <- tapply(data_new$steps, data_new$interval, mean, na.rm=TRUE, simplify=TRUE)
+data_new$steps[nas] <- avg_interval[as.character(data_new$interval[nas])]
+sum(is.na(data_new$steps))
+```
+
+### Calculations of steps in a day on the new dataset 
+```{r}
+steps_new <- data_new %>%
+filter(!is.na(steps)) %>%
+group_by(date) %>%
+summarize(steps = sum(steps)) %>%
+print
+```
+
+### Plotting the new histogram using ggplot
+```{r}
+ggplot(steps_new, aes(x = steps)) +
+geom_histogram(fill = "firebrick", binwidth = 1000) +
+labs(title = "Histogram of Steps per day, including missing values", x = "Steps per day", y = "Frequency")
+```
+
+### New mean and median calculations
+```{r}
+mean_steps_new <- mean(steps_new$steps, na.rm = TRUE)
+median_steps_new <- median(steps_new$steps, na.rm = TRUE)
+```
+
+## Probing for differences in activity pattern between weekdays and weekends
+
+### Creating a new column and storing it with weekdays or weekend classification. Also, reading the sample output
+```{r}
+data_new <- mutate(data_new, weektype = ifelse(weekdays(data_new$date) == "Saturday" | weekdays(data_new$date) == "Sunday", "weekend", "weekday"))
+data_new$weektype <- as.factor(data_new$weektype)
+head(data_new)
+```
+
+### Calculation of the average steps in 5 minute interval for weekdays and weekend time series charts
+```{r}
+interval_new <- data_new %>%
+group_by(interval, weektype) %>%
+summarise(steps = mean(steps))
+s <- ggplot(interval_new, aes(x=interval, y=steps, color = weektype)) +
+geom_line() +
+facet_wrap(~weektype, ncol = 1, nrow=2)
+print(s)
+```
+
+  
+
+
+
+
